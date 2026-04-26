@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Remote Recruiter — Your AI Headhunter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+<style>
+/* ─── TOKENS ──────────────────────────────────────────────────
+   One brand colour: emerald (#34d399).
+   Used only on: CTA focus border, active role rows,
+   selected region button, wordmark dot.
+   Score rings keep their own semantic colours.
+   Zero gradient text. Zero purple.
+─────────────────────────────────────────────────────────────*/
+:root {
+  --bg:      #0c0c0d;
+  --surface: #131315;
+  --card:    #18181b;
+  --card-hi: #1f1f23;
+  --border:  rgba(255,255,255,.07);
+  --bhi:     rgba(255,255,255,.13);
+
+  --em:    #34d399;
+  --em-bg: rgba(52,211,153,.07);
+  --em-bd: rgba(52,211,153,.2);
+
+  --green:#22c55e; --green-bg:rgba(34,197,94,.09);  --green-bd:rgba(34,197,94,.22);
+  --blue: #60a5fa; --blue-bg: rgba(96,165,250,.09); --blue-bd: rgba(96,165,250,.22);
+  --amber:#fbbf24; --amber-bg:rgba(251,191,36,.09); --amber-bd:rgba(251,191,36,.22);
+  --red:  #f87171; --red-bg:  rgba(248,113,113,.09);--red-bd:  rgba(248,113,113,.22);
+
+  --t1:#f4f4f5; --t2:#8b8b99; --t3:#4a4a56;
+  /* aliases for legacy references */
+  --text:var(--t1); --text-2:var(--t2); --text-3:var(--t3);
+
+  --radius-sm:8px; --radius:12px; --radius-lg:18px;
+}
+
+/* ─── RESET ───────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;}
+a{text-decoration:none;color:inherit;}
+textarea,input{font-family:inherit;}
+
+/* ─── STEP SYSTEM ─────────────────────────────────────────── */
+.step{display:none;min-height:100vh;}
+.step.active{display:block;}
+
+/* ─── LOADING OVERLAY ─────────────────────────────────────── */
+#loader{
+  position:fixed;inset:0;z-index:999;
+  background:rgba(12,12,13,.88);
+  backdrop-filter:blur(14px);
+  display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:1.25rem;
+}
+#loader.show{display:flex;}
+.loader-ring{
+  width:48px;height:48px;
+  border:3px solid rgba(255,255,255,.06);border-top-color:var(--em);
+  border-radius:50%;animation:spin .75s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+#loader-title{font-size:.93rem;font-weight:600;color:var(--t1);}
+#loader-sub{font-size:.76rem;color:var(--t3);max-width:300px;text-align:center;line-height:1.6;}
+
+/* ─── TOP NAV ─────────────────────────────────────────────── */
+.top-nav{
+  position:fixed;top:0;left:0;right:0;z-index:80;height:50px;
+  background:rgba(12,12,13,.85);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 1.5rem;gap:1rem;
+}
+.nav-brand{font-size:.85rem;font-weight:700;letter-spacing:-.2px;color:var(--t1);}
+.nav-back{
+  font-size:.75rem;color:var(--t3);
+  display:flex;align-items:center;gap:.3rem;
+  border:none;background:none;padding:0;transition:color .15s;
+}
+.nav-back:hover{color:var(--t2);}
+.step-pill{
+  margin-left:auto;font-size:.68rem;color:var(--t3);
+  border:1px solid var(--border);border-radius:20px;padding:2px 10px;
+}
+
+/* ─── STEP 1 — LANDING ────────────────────────────────────── */
+#step1{
+  display:flex;align-items:center;justify-content:center;
+  padding:2rem 1rem 4rem;position:relative;overflow:hidden;
+}
+/* Subtle grid — no animated blobs */
+#step1::before{
+  content:'';position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 30%,transparent 100%);
+  pointer-events:none;
+}
+/* One soft glow, not three animated blobs */
+#step1::after{
+  content:'';position:absolute;
+  width:560px;height:560px;border-radius:50%;
+  background:radial-gradient(circle,rgba(52,211,153,.06) 0%,transparent 65%);
+  top:50%;left:50%;transform:translate(-50%,-55%);
+  pointer-events:none;
+}
+.hero-blob{display:none;} /* remove old blobs */
+
+.hero-card{
+  position:relative;z-index:1;
+  width:100%;max-width:580px;
+  background:rgba(18,18,20,.82);
+  backdrop-filter:blur(16px);
+  border:1px solid var(--bhi);
+  border-radius:var(--radius-lg);
+  padding:2.5rem;
+  animation:rise .4s ease forwards;
+}
+@keyframes rise{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+/* Wordmark — plain text + a dot, no gradient */
+.wordmark{
+  display:inline-flex;align-items:center;gap:.5rem;
+  font-size:.72rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--t3);margin-bottom:2rem;
+}
+.wordmark i{color:var(--em);font-size:.8rem;}
+
+/* Headline — plain white, zero gradient */
+.hero-headline{
+  font-size:clamp(1.8rem,5vw,2.5rem);font-weight:900;
+  letter-spacing:-.7px;line-height:1.12;
+  color:var(--t1);margin-bottom:.75rem;
+}
+/* Remove the gradient span */
+.hero-headline .grad{color:inherit;}
+
+.hero-sub{font-size:.9rem;color:var(--t2);line-height:1.7;margin-bottom:1.75rem;}
+
+/* Feature pills — muted, no bright backgrounds */
+.feature-pills{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.75rem;}
+.feature-pill{
+  font-size:.71rem;font-weight:500;padding:4px 11px;border-radius:20px;
+  border:1px solid var(--border);color:var(--t2);
+  display:flex;align-items:center;gap:.35rem;
+}
+.feature-pill i{font-size:.75rem;}
+/* Override the old coloured pill variants */
+.fp-1,.fp-2,.fp-3{background:transparent;border-color:var(--border);color:var(--t2);}
+
+/* Tip */
+.linkedin-tip{
+  background:var(--em-bg);border:1px solid var(--em-bd);
+  border-radius:var(--radius-sm);padding:.65rem 1rem;
+  font-size:.75rem;color:var(--t2);margin-bottom:.85rem;
+  display:flex;align-items:flex-start;gap:.6rem;
+}
+.linkedin-tip i{flex-shrink:0;color:var(--em);margin-top:2px;}
+kbd{
+  background:rgba(255,255,255,.06);border:1px solid var(--bhi);
+  border-radius:4px;padding:1px 6px;font-size:.7rem;font-family:inherit;
+}
+
+/* Textarea */
+.profile-textarea{
+  width:100%;background:rgba(0,0,0,.35);
+  border:1px solid var(--bhi);border-radius:var(--radius-sm);
+  color:var(--t1);font-size:.82rem;line-height:1.65;
+  padding:.85rem 1rem;resize:vertical;min-height:190px;
+  outline:none;transition:border-color .18s;
+}
+.profile-textarea::placeholder{color:var(--t3);}
+.profile-textarea:focus{border-color:var(--em);}
+
+/* CTA — solid white, no gradient */
+.btn-cta{
+  width:100%;margin-top:.75rem;padding:.85rem;
+  background:#fff;border:none;border-radius:var(--radius-sm);
+  color:#0c0c0d;font-size:.88rem;font-weight:700;letter-spacing:.1px;
+  transition:background .15s,transform .1s;
+}
+.btn-cta:hover{background:#e8e8ec;}
+.btn-cta:active{transform:scale(.99);}
+.btn-cta:disabled{background:rgba(255,255,255,.1);color:var(--t3);}
+
+.hero-footer{
+  text-align:center;margin-top:.85rem;font-size:.68rem;color:var(--t3);
+  display:flex;align-items:center;justify-content:center;gap:.4rem;
+}
+
+.error-box{
+  margin-top:.75rem;
+  background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);
+  border-radius:var(--radius-sm);padding:.65rem 1rem;
+  font-size:.79rem;color:var(--red);display:none;
+}
+
+/* ─── STEP 2 — ANALYSIS ───────────────────────────────────── */
+#step2{padding-top:50px;}
+
+.profile-hero{border-bottom:1px solid var(--border);padding:2rem;}
+.profile-avatar{
+  width:46px;height:46px;border-radius:50%;
+  background:var(--card-hi);border:1px solid var(--bhi);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;color:var(--t2);flex-shrink:0;
+}
+.profile-name{font-size:1.35rem;font-weight:800;letter-spacing:-.4px;}
+.profile-headline{font-size:.83rem;color:var(--t2);margin-top:.2rem;}
+.profile-years{font-size:.72rem;color:var(--t3);}
+.profile-years span{font-weight:600;color:var(--t2);}
+.profile-summary{font-size:.83rem;color:var(--t2);line-height:1.7;margin-top:.9rem;max-width:720px;}
+
+.analysis-body{max-width:940px;margin:0 auto;padding:1.75rem 2rem 120px;}
+.analysis-section{margin-bottom:2.25rem;}
+
+.section-head{
+  font-size:.65rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:1px;color:var(--t3);margin-bottom:.8rem;
+}
+
+/* Reveal animation */
+.reveal{opacity:0;transform:translateY(10px);}
+.revealed{animation:rise .35s ease forwards;}
+
+/* Skills */
+.skill-pill{
+  display:inline-block;font-size:.72rem;font-weight:500;
+  padding:4px 11px;border-radius:20px;
+  border:1px solid var(--border);color:var(--t2);
+  margin:.2rem .15rem;transition:border-color .15s,color .15s;
+}
+.skill-pill:hover{border-color:var(--bhi);color:var(--t1);}
+
+/* Sector grid */
+.sectors-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.6rem;}
+.sector-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:.9rem 1rem;
+  transition:border-color .18s,transform .15s;
+}
+.sector-card:hover{border-color:var(--bhi);transform:translateY(-1px);}
+.sector-emoji{font-size:1.3rem;margin-bottom:.55rem;display:block;}
+.sector-name{font-size:.82rem;font-weight:700;margin-bottom:.2rem;}
+.sector-why{font-size:.72rem;color:var(--t3);line-height:1.5;}
+
+/* Fit badges — muted, not coloured */
+.fit-badge{
+  font-size:.6rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.5px;padding:2px 8px;border-radius:4px;
+  display:inline-block;margin-bottom:.4rem;
+  background:rgba(255,255,255,.05);color:var(--t2);border:1px solid var(--border);
+}
+.fit-excellent{background:rgba(255,255,255,.06);color:var(--t2);border-color:var(--bhi);}
+.fit-strong{background:rgba(255,255,255,.04);color:var(--t3);border-color:var(--border);}
+.fit-good{background:rgba(255,255,255,.03);color:var(--t3);border-color:var(--border);}
+
+/* Role list */
+.roles-list{display:flex;flex-direction:column;gap:.4rem;}
+.role-item{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:.7rem 1rem;
+  display:flex;align-items:center;gap:.75rem;
+  cursor:pointer;transition:border-color .15s,background .15s;
+  user-select:none;
+}
+.role-item:hover{border-color:var(--bhi);}
+.role-item.sel{border-color:var(--em-bd);background:var(--em-bg);}
+
+.role-check{
+  width:16px;height:16px;border-radius:4px;flex-shrink:0;
+  border:1.5px solid var(--bhi);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.6rem;color:transparent;transition:all .15s;
+}
+.role-item.sel .role-check{background:var(--em);border-color:var(--em);color:#0c0c0d;}
+
+.role-title-text{font-size:.83rem;font-weight:600;}
+.role-why-text{font-size:.72rem;color:var(--t3);margin-top:1px;}
+
+.tag-lateral,.tag-stretch{
+  font-size:.6rem;font-weight:600;padding:2px 7px;border-radius:4px;
+  border:1px solid var(--border);color:var(--t3);background:transparent;
+}
+
+.roles-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:.65rem;}
+.roles-toolbar-btns{display:flex;gap:.4rem;}
+.btn-micro{
+  font-size:.69rem;font-weight:600;padding:3px 10px;
+  border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--t3);transition:all .15s;
+}
+.btn-micro:hover{border-color:var(--bhi);color:var(--t2);}
+.btn-micro.primary{border-color:var(--em-bd);color:var(--em);background:var(--em-bg);}
+
+/* Region */
+.region-grid{display:flex;flex-wrap:wrap;gap:.45rem;}
+.region-btn{
+  padding:.42rem 1rem;font-size:.79rem;font-weight:500;
+  border-radius:var(--radius-sm);border:1px solid var(--border);
+  background:transparent;color:var(--t2);transition:all .15s;
+}
+.region-btn:hover{border-color:var(--bhi);color:var(--t1);}
+.region-btn.active{border-color:var(--em-bd);background:var(--em-bg);color:var(--em);font-weight:600;}
+.region-hint{font-size:.7rem;color:var(--t3);margin-top:.5rem;line-height:1.55;}
+
+/* Action bar */
+.action-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:70;
+  background:rgba(12,12,13,.92);backdrop-filter:blur(14px);
+  border-top:1px solid var(--border);
+  padding:.85rem 2rem;
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;
+}
+.action-bar-info{font-size:.77rem;color:var(--t3);}
+.action-bar-info span{font-weight:700;color:var(--t2);}
+.btn-find{
+  padding:.62rem 1.6rem;background:#fff;border:none;
+  border-radius:var(--radius-sm);
+  color:#0c0c0d;font-size:.84rem;font-weight:700;
+  display:flex;align-items:center;gap:.5rem;transition:background .15s;
+}
+.btn-find:hover{background:#e8e8ec;}
+
+/* ─── STEP 3 — JOB BOARD ──────────────────────────────────── */
+#step3{padding-top:50px;}
+
+.jobs-toolbar{
+  position:sticky;top:50px;z-index:70;
+  background:rgba(12,12,13,.92);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border);
+  padding:.6rem 1.5rem;
+  display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;
+}
+.toolbar-label{font-size:.7rem;color:var(--t3);font-weight:600;}
+.sort-btn{
+  font-size:.71rem;font-weight:600;padding:.28rem .8rem;border-radius:6px;
+  border:1px solid var(--border);background:transparent;color:var(--t3);
+  display:flex;align-items:center;gap:.3rem;transition:all .15s;
+}
+.sort-btn:hover{border-color:var(--bhi);color:var(--t2);}
+.sort-btn.active{border-color:var(--bhi);color:var(--t1);background:rgba(255,255,255,.04);}
+.jobs-count{margin-left:auto;font-size:.71rem;color:var(--t3);}
+
+.jobs-feed{
+  max-width:800px;margin:0 auto;
+  padding:1.25rem 1.5rem 4rem;
+  display:flex;flex-direction:column;gap:.75rem;
+}
+
+/* Empty state */
+.empty-state{text-align:center;padding:4rem 2rem;display:none;}
+.empty-icon{font-size:2.5rem;opacity:.12;display:block;margin-bottom:1rem;}
+.empty-title{font-size:.9rem;font-weight:600;color:var(--t3);}
+.empty-sub{font-size:.78rem;color:var(--t3);margin-top:.35rem;}
+
+/* Job card */
+.job-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1.25rem 1.25rem 1.25rem 1.5rem;
+  position:relative;overflow:hidden;
+  transition:border-color .18s,transform .15s;
+  animation:cardrise .3s ease forwards;
+}
+@keyframes cardrise{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.job-card:hover{border-color:var(--bhi);transform:translateY(-1px);}
+
+/* Thin left accent bar — semantic colour only */
+.job-card::before{
+  content:'';position:absolute;
+  left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;
+}
+.card-excellent::before{background:var(--green);}
+.card-good::before{background:var(--blue);}
+.card-fair::before{background:var(--amber);}
+.card-poor::before,.card-unknown::before{background:var(--t3);}
+
+.card-top{display:flex;gap:.85rem;align-items:flex-start;}
+.company-logo{
+  width:42px;height:42px;border-radius:8px;
+  object-fit:contain;background:#fff;padding:5px;flex-shrink:0;
+}
+.company-placeholder{
+  width:42px;height:42px;border-radius:8px;
+  background:var(--card-hi);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.95rem;color:var(--t3);flex-shrink:0;
+}
+.card-main{flex:1;min-width:0;}
+.card-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;}
+.job-title{font-size:.93rem;font-weight:700;letter-spacing:-.2px;}
+.job-company{font-size:.77rem;color:var(--t2);margin-top:.18rem;}
+.job-meta{font-size:.74rem;color:var(--t3);margin-top:.1rem;}
+
+/* Score ring — semantic colour, not brand colour */
+.score-ring{
+  width:46px;height:46px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;font-weight:900;flex-shrink:0;
+  border:2px solid;
+  animation:pop .35s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+@keyframes pop{from{transform:scale(.5);opacity:0;}to{transform:scale(1);opacity:1;}}
+.ring-excellent{color:var(--green);border-color:var(--green);background:var(--green-bg);}
+.ring-good{color:var(--blue); border-color:var(--blue); background:var(--blue-bg);}
+.ring-fair{color:var(--amber);border-color:var(--amber);background:var(--amber-bg);}
+.ring-poor,.ring-unknown{color:var(--t3);border-color:var(--t3);background:rgba(255,255,255,.04);}
+
+/* Badges */
+.card-badges{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.6rem;}
+.badge{
+  font-size:.66rem;font-weight:600;
+  padding:3px 9px;border-radius:5px;
+  display:inline-flex;align-items:center;gap:.3rem;
+  border:1px solid var(--border);color:var(--t2);background:transparent;
+}
+/* Only remote gets colour */
+.badge-remote{color:var(--green);border-color:var(--green-bd);background:var(--green-bg);}
+.badge-type,.badge-salary,.badge-date{color:var(--t2);border-color:var(--border);}
+
+.job-desc{
+  font-size:.78rem;color:var(--t3);line-height:1.65;margin-top:.7rem;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+}
+
+.tags-row{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.6rem;}
+.tag{font-size:.68rem;font-weight:500;padding:2px 9px;border-radius:4px;}
+.tag-match{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);}
+.tag-watch{background:var(--red-bg);  color:var(--red);  border:1px solid var(--red-bd);}
+
+/* Recruiter note — neutral, no purple */
+.recruiter-note{
+  margin-top:.8rem;
+  background:rgba(255,255,255,.022);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  padding:.8rem 1rem;
+}
+.rn-label{
+  font-size:.63rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.6px;color:var(--t3);margin-bottom:.35rem;
+  display:flex;align-items:center;gap:.35rem;
+}
+.rn-text{font-size:.77rem;color:var(--t2);line-height:1.65;}
+
+.card-footer-row{display:flex;justify-content:flex-end;margin-top:.9rem;}
+.btn-apply{
+  font-size:.73rem;font-weight:600;
+  padding:.42rem .95rem;border-radius:var(--radius-sm);
+  border:1px solid var(--bhi);
+  background:transparent;color:var(--t2);
+  display:inline-flex;align-items:center;gap:.35rem;transition:all .15s;
+}
+.btn-apply:hover{border-color:var(--em-bd);color:var(--em);}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#282828;border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- ── Loading overlay ──────────────────────────────────── -->
+<div id="loader">
+  <div class="loader-ring"></div>
+  <div>
+    <div id="loader-title">Analysing your profile…</div>
+    <div id="loader-sub">Claude is mapping your career and identifying every role you could be competitive for.</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     STEP 1 — LANDING
+════════════════════════════════════════════════════════ -->
+<div class="step active" id="step1">
+
+  <div class="hero-card">
+    <div class="wordmark">
+      <i class="bi bi-globe2"></i>
+      Remote Recruiter
+    </div>
+
+    <h1 class="hero-headline">
+      Your personal<br>AI headhunter.
+    </h1>
+    <p class="hero-sub">
+      Paste your LinkedIn profile or CV. We read your full career history and identify every role you're competitive for — including ones you haven't considered — then find remote jobs that actually hire where you live.
+    </p>
+
+    <div class="feature-pills">
+      <span class="feature-pill"><i class="bi bi-stars"></i>AI career analysis</span>
+      <span class="feature-pill"><i class="bi bi-globe2"></i>Remote-first, region-aware</span>
+      <span class="feature-pill"><i class="bi bi-person-check"></i>Recruiter's take on every job</span>
+    </div>
+
+    <div class="linkedin-tip">
+      <i class="bi bi-linkedin"></i>
+      <span>
+        <strong style="color:var(--t1);">LinkedIn tip:</strong>
+        Go to your profile → press <kbd>Ctrl+A</kbd> then <kbd>Ctrl+C</kbd> → paste below.
+        Or paste your CV text directly.
+      </span>
+    </div>
+
+    <textarea
+      id="profile-input"
+      class="profile-textarea"
+      placeholder="Paste your LinkedIn profile or CV here…
+
+The more detail you include, the better your role recommendations will be."></textarea>
+
+    <div id="step1-err" class="error-box"></div>
+
+    <button class="btn-cta" onclick="runAnalysis()">
+      Analyse my profile →
+    </button>
+
+    <div class="hero-footer">
+      <i class="bi bi-lock-fill"></i>
+      Sent only to Anthropic's Claude API for analysis. Nothing is stored.
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     STEP 2 — ANALYSIS
+════════════════════════════════════════════════════════ -->
+<div class="step" id="step2">
+
+  <nav class="top-nav">
+    <button class="nav-back" onclick="goTo(1)">
+      <i class="bi bi-arrow-left"></i> Start over
+    </button>
+    <div class="nav-brand" style="margin-left:.5rem;">Remote Recruiter</div>
+    <div class="step-pill">Step 2 / 3</div>
+  </nav>
+
+  <div class="profile-hero">
+    <div style="display:flex;align-items:flex-start;gap:1rem;">
+      <div class="profile-avatar"><i class="bi bi-person"></i></div>
+      <div style="flex:1;">
+        <div style="display:flex;align-items:baseline;gap:.75rem;flex-wrap:wrap;">
+          <div class="profile-name" id="cand-name">—</div>
+          <div class="profile-years"><span id="cand-years">—</span> yrs experience</div>
+        </div>
+        <div class="profile-headline" id="cand-headline">—</div>
+      </div>
+    </div>
+    <div class="profile-summary" id="cand-summary"></div>
+  </div>
+
+  <div class="analysis-body">
+
+    <div class="analysis-section reveal">
+      <div class="section-head">Core Skills Identified</div>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;" id="skills-wrap"></div>
+    </div>
+
+    <div class="analysis-section reveal">
+      <div class="section-head">Best Sector Fits</div>
+      <div class="sectors-grid" id="sectors-wrap"></div>
+    </div>
+
+    <div class="analysis-section reveal">
+      <div class="roles-toolbar">
+        <div class="section-head" style="margin:0;">
+          Roles to Search &nbsp;
+          <span id="role-count" style="color:var(--em);font-weight:700;"></span>
+        </div>
+        <div class="roles-toolbar-btns">
+          <button class="btn-micro primary" onclick="selectAllRoles()">Select all</button>
+          <button class="btn-micro" onclick="clearAllRoles()">Clear</button>
+        </div>
+      </div>
+      <div class="roles-list" id="roles-wrap"></div>
+    </div>
+
+    <div class="analysis-section reveal">
+      <div class="section-head">Target Region for Remote Jobs</div>
+      <div class="region-grid">
+        <button class="region-btn" onclick="setRegion('uk',this)">🇬🇧 UK &amp; Ireland</button>
+        <button class="region-btn" onclick="setRegion('eu',this)">🇪🇺 Europe</button>
+        <button class="region-btn" onclick="setRegion('us',this)">🇺🇸 North America</button>
+        <button class="region-btn" onclick="setRegion('apac',this)">🌏 APAC</button>
+        <button class="region-btn active" onclick="setRegion('global',this)">🌍 Global / Any</button>
+      </div>
+      <div class="region-hint">
+        <i class="bi bi-info-circle" style="margin-right:.3rem;"></i>
+        Many "remote" roles on job boards are quietly US-only. We target your region specifically so you don't waste time on listings that won't hire where you live.
+      </div>
+    </div>
+
+  </div>
+
+  <div class="action-bar">
+    <div class="action-bar-info">
+      <span id="sel-count">0</span> roles selected
+    </div>
+    <button class="btn-find" onclick="findJobs()">
+      <i class="bi bi-search"></i> Find My Remote Jobs
+    </button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     STEP 3 — JOB BOARD
+════════════════════════════════════════════════════════ -->
+<div class="step" id="step3">
+
+  <nav class="top-nav">
+    <button class="nav-back" onclick="goTo(2)">
+      <i class="bi bi-arrow-left"></i> Back
+    </button>
+    <div class="nav-brand" style="margin-left:.5rem;">Remote Recruiter</div>
+    <div class="step-pill">Step 3 / 3</div>
+  </nav>
+
+  <div class="jobs-toolbar">
+    <span class="toolbar-label">Sort:</span>
+    <button class="sort-btn active" data-sort="score" onclick="setSort('score',this)">
+      <i class="bi bi-stars"></i> Best Match
+    </button>
+    <button class="sort-btn" data-sort="recent" onclick="setSort('recent',this)">
+      <i class="bi bi-clock"></i> Most Recent
+    </button>
+    <span class="jobs-count" id="jobs-count"></span>
+  </div>
+
+  <div class="empty-state" id="jobs-empty">
+    <i class="bi bi-search empty-icon"></i>
+    <div class="empty-title">No jobs found</div>
+    <div class="empty-sub">Try different roles or a wider region.</div>
+  </div>
+
+  <div class="jobs-feed" id="jobs-feed"></div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════════════ -->
+<script>
+/* ── State ──────────────────────────────────────────────── */
+let analysis       = null;
+let allJobs        = [];
+let selectedRegion = 'global';
+let currentSort    = 'score';
+
+/* ── Navigation ─────────────────────────────────────────── */
+function goTo(n) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById(`step${n}`).classList.add('active');
+  window.scrollTo({ top: 0 });
+  if (n === 2) revealSections();
+}
+
+/* ── Step 1: Analyse ────────────────────────────────────── */
+async function runAnalysis() {
+  const text = document.getElementById('profile-input').value.trim();
+  if (!text) { showErr('Please paste your LinkedIn profile or CV text first.'); return; }
+  clearErr();
+  showLoader('Reading your profile…',
+    'Claude is mapping your career history and identifying every role you could be competitive for.');
+
+  try {
+    const res  = await post('/analyse', { profile: text });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Analysis failed.');
+    analysis = data;
+    renderAnalysis(data);
+    hideLoader();
+    goTo(2);
+  } catch (e) {
+    hideLoader();
+    showErr(e.message);
+  }
+}
+
+/* ── Render step 2 ──────────────────────────────────────── */
+function renderAnalysis(a) {
+  setEl('cand-name',     a.name || 'Your Profile');
+  setEl('cand-headline', a.headline || '');
+  setEl('cand-years',    a.years_experience || '—');
+  setEl('cand-summary',  a.career_summary || '');
+
+  setHTML('skills-wrap',
+    (a.core_skills||[]).map(s => `<span class="skill-pill">${esc(s)}</span>`).join(''));
+
+  setHTML('sectors-wrap',
+    (a.sectors||[]).map(s => `
+      <div class="sector-card">
+        <div class="sector-emoji">${s.emoji||'💼'}</div>
+        <span class="fit-badge fit-${(s.fit||'good').toLowerCase()}">${esc(s.fit)}</span>
+        <div class="sector-name">${esc(s.name)}</div>
+        <div class="sector-why">${esc(s.why)}</div>
+      </div>`).join(''));
+
+  setHTML('roles-wrap',
+    (a.recommended_roles||[]).map((r,i) => `
+      <div class="role-item sel" data-i="${i}" onclick="toggleRole(this,${i})">
+        <div class="role-check"><i class="bi bi-check"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div class="role-title-text">${esc(r.title)}</div>
+          <div class="role-why-text">${esc(r.why)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0;">
+          <span class="fit-badge fit-${(r.fit||'good').toLowerCase()}" style="font-size:.6rem;">${esc(r.fit)}</span>
+          ${r.is_lateral ? '<span class="tag-lateral">Lateral</span>' : ''}
+          ${r.is_stretch ? '<span class="tag-stretch">Stretch</span>' : ''}
+        </div>
+      </div>`).join(''));
+
+  updateCount();
+}
+
+function toggleRole(el, i) { el.classList.toggle('sel'); updateCount(); }
+function selectAllRoles() {
+  document.querySelectorAll('.role-item').forEach(el => el.classList.add('sel'));
+  updateCount();
+}
+function clearAllRoles() {
+  document.querySelectorAll('.role-item').forEach(el => el.classList.remove('sel'));
+  updateCount();
+}
+function updateCount() {
+  const n = document.querySelectorAll('.role-item.sel').length;
+  const t = document.querySelectorAll('.role-item').length;
+  setEl('sel-count', n);
+  setEl('role-count', n === t ? '(all)' : `(${n} of ${t})`);
+}
+
+function setRegion(key, btn) {
+  selectedRegion = key;
+  document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ── Step 2 → 3: search ─────────────────────────────────── */
+async function findJobs() {
+  const sels = document.querySelectorAll('.role-item.sel');
+  if (!sels.length) { alert('Select at least one role first.'); return; }
+
+  const roles = Array.from(sels).map(el =>
+    analysis.recommended_roles[+el.dataset.i].title);
+
+  const profileSummary = [
+    analysis.career_summary,
+    'Skills: ' + (analysis.core_skills||[]).join(', '),
+  ].join('\n\n');
+
+  showLoader(
+    `Searching ${roles.length} roles · ${regionLabel(selectedRegion)}…`,
+    'Finding live remote listings and scoring each one against your profile. Takes ~20–30 seconds.'
+  );
+
+  try {
+    const res  = await post('/search', {
+      roles, region: selectedRegion, profile_summary: profileSummary });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Search failed.');
+    allJobs = data;
+    renderJobs();
+    hideLoader();
+    goTo(3);
+  } catch (e) {
+    hideLoader();
+    alert('Search error: ' + e.message);
+  }
+}
+
+/* ── Render step 3 ──────────────────────────────────────── */
+function renderJobs() {
+  const feed  = document.getElementById('jobs-feed');
+  const empty = document.getElementById('jobs-empty');
+  const count = document.getElementById('jobs-count');
+
+  if (!allJobs.length) {
+    feed.innerHTML = '';
+    empty.style.display = 'block';
+    count.textContent = '';
+    return;
+  }
+  empty.style.display = 'none';
+  const sorted = sortJobs([...allJobs], currentSort);
+  feed.innerHTML = sorted.map((j, idx) => jobCard(j, idx)).join('');
+  count.textContent = `${allJobs.length} job${allJobs.length!==1?'s':''} found`;
+}
+
+function sortJobs(jobs, by) {
+  return by === 'score'
+    ? jobs.sort((a,b) => ((b.ai_score?.score||0) - (a.ai_score?.score||0)))
+    : jobs.sort((a,b) => (b.posted||'').localeCompare(a.posted||''));
+}
+
+function setSort(by, btn) {
+  currentSort = by;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderJobs();
+}
+
+/* ── Job card HTML ──────────────────────────────────────── */
+function jobCard(job, idx) {
+  const ai    = job.ai_score;
+  const level = (ai?.match_level || 'unknown').toLowerCase();
+  const delay = Math.min(idx * 40, 400);
+
+  const logo = job.company_logo
+    ? `<img src="${esc(job.company_logo)}" class="company-logo" alt="${esc(job.company)}"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+       <div class="company-placeholder" style="display:none"><i class="bi bi-building"></i></div>`
+    : `<div class="company-placeholder"><i class="bi bi-building"></i></div>`;
+
+  const ring = ai
+    ? `<div class="score-ring ring-${level}" title="Match score: ${ai.score}/10">${ai.score}</div>`
+    : '';
+
+  const badges = [
+    job.is_remote       ? `<span class="badge badge-remote"><i class="bi bi-wifi"></i> Remote</span>` : '',
+    job.employment_type ? `<span class="badge badge-type">${esc(job.employment_type)}</span>` : '',
+    job.salary          ? `<span class="badge badge-salary">${esc(job.salary)}</span>` : '',
+    job.posted          ? `<span class="badge badge-date">${esc(job.posted)}</span>` : '',
+  ].filter(Boolean).join('');
+
+  const tags = ai ? [
+    ...(ai.key_matches||[]).slice(0,4).map(m=>`<span class="tag tag-match">${esc(m)}</span>`),
+    ...(ai.watch_outs||[]).slice(0,2).map(w=>`<span class="tag tag-watch"><i class="bi bi-exclamation-triangle"></i> ${esc(w)}</span>`),
+  ].join('') : '';
+
+  const note = ai?.recruiter_note ? `
+    <div class="recruiter-note">
+      <div class="rn-label"><i class="bi bi-person-check"></i> Recruiter's take</div>
+      <div class="rn-text">${esc(ai.recruiter_note)}</div>
+    </div>` : '';
+
+  return `
+<div class="job-card card-${level}" style="animation-delay:${delay}ms">
+  <div class="card-top">
+    ${logo}
+    <div class="card-main">
+      <div class="card-title-row">
+        <div>
+          <div class="job-title">${esc(job.title)}</div>
+          <div class="job-company"><i class="bi bi-building" style="margin-right:.3rem;"></i>${esc(job.company)}</div>
+          <div class="job-meta"><i class="bi bi-geo-alt" style="margin-right:.3rem;"></i>${esc(job.location)}</div>
+        </div>
+        ${ring}
+      </div>
+      ${badges ? `<div class="card-badges">${badges}</div>` : ''}
+    </div>
+  </div>
+  <div class="job-desc">${esc(job.description)}</div>
+  ${tags ? `<div class="tags-row">${tags}</div>` : ''}
+  ${note}
+  <div class="card-footer-row">
+    <a href="${job.apply_link}" target="_blank" rel="noopener" class="btn-apply">
+      View &amp; Apply <i class="bi bi-arrow-up-right"></i>
+    </a>
+  </div>
+</div>`;
+}
+
+/* ── Scroll reveal ──────────────────────────────────────── */
+function revealSections() {
+  document.querySelectorAll('#step2 .reveal').forEach((el, i) => {
+    setTimeout(() => {
+      el.classList.remove('reveal');
+      el.classList.add('revealed');
+    }, 100 + i * 120);
+  });
+}
+
+/* ── Loader ─────────────────────────────────────────────── */
+function showLoader(title, sub) {
+  setEl('loader-title', title);
+  setEl('loader-sub', sub || '');
+  document.getElementById('loader').classList.add('show');
+}
+function hideLoader() {
+  document.getElementById('loader').classList.remove('show');
+}
+
+/* ── Error (step 1) ─────────────────────────────────────── */
+function showErr(msg) {
+  const el = document.getElementById('step1-err');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function clearErr() {
+  document.getElementById('step1-err').style.display = 'none';
+}
+
+/* ── Helpers ────────────────────────────────────────────── */
+function post(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+function setEl(id, val)    { const e = document.getElementById(id); if (e) e.textContent = val; }
+function setHTML(id, html) { const e = document.getElementById(id); if (e) e.innerHTML = html; }
+function esc(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function regionLabel(k) {
+  return {uk:'UK & Ireland',eu:'Europe',us:'North America',apac:'APAC',global:'Global'}[k]||k;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey &&
+      document.getElementById('step1').classList.contains('active')) {
+    runAnalysis();
+  }
+});
+</script>
+</body>
+</html>
